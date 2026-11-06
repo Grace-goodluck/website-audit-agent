@@ -52,10 +52,19 @@ def test_collect_links_skip_prefixes_are_case_insensitive():
 @pytest.mark.parametrize(
     "status, outcome",
     [(200, "ok"), (301, "ok"), (404, "broken"), (410, "broken"), (500, "broken"), (503, "broken"),
-     (401, "blocked"), (403, "blocked"), (429, "blocked"), (400, "unknown"), (418, "unknown")],
+     (599, "broken"), (401, "blocked"), (403, "blocked"), (429, "blocked"), (400, "unknown"), (418, "unknown"),
+     (600, "unknown"), (999, "unknown")],
 )
 def test_classify_status(status, outcome):
     assert classify_status("u", status).outcome == outcome
+
+
+def test_linkedin_999_is_unknown_not_broken():
+    """LinkedIn answers bots with 999; decision 4 counts only 5xx as broken."""
+    url = "https://www.linkedin.com/in/someone/"
+    result = check_links([url], FakeHttp({url: 999}))
+    assert result.passed
+    assert result.items == (f"UNKNOWN (999) {url}",)
 
 
 @pytest.mark.parametrize(

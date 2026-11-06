@@ -50,7 +50,7 @@ def collect_links(page: FetchedPage, soup: BeautifulSoup) -> list[str]:
 
 
 def classify_status(url: str, status: int) -> LinkStatus:
-    if status in _GONE or status >= 500:
+    if status in _GONE or 500 <= status < 600:  # 5xx only (decision 4); e.g. LinkedIn's 999 is not broken
         return LinkStatus(url, "broken", str(status))
     if status in _BLOCKED:
         return LinkStatus(url, "blocked", str(status))
