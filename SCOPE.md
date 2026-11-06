@@ -35,23 +35,23 @@ Audit one web page and produce a plain-English report: what was checked, what pa
 9. Exit codes: 0 when the report has a summary; 1 when the report is written but the summary is unavailable or the page could not be fetched; 2 for bad command-line arguments, including a URL that isn't http(s).
 
 ## Decisions (2026-11-06): web demo
-Public demo on Hugging Face Spaces (Docker Space), with a FastAPI web layer over the unchanged audit logic.
+Public demo on Render (free web service, Docker), with a FastAPI web layer over the unchanged audit logic. (First planned for Hugging Face Spaces; see "Decision (2026-11-06): host".)
 1. Limits: 3 audits per visitor per hour; at most 15 Gemini summaries per day; at most 30 audits per day in total. "Daily" resets at midnight Pacific time, matching Gemini's quota. When the summary cap is reached, the checks still run and the summary is skipped.
 2. A visitor is identified by the first IP in X-Forwarded-For. The daily total cap is the real protection.
-3. Limits are kept in memory; resetting when the Space restarts is acceptable.
+3. Limits are kept in memory; resetting when the service restarts or is redeployed is acceptable.
 4. Web audits check at most 15 links, with a 5 s timeout each (the command line keeps 30 links and 10 s).
 5. Before an audit runs, the visitor must tick a box confirming they own the site or have permission to audit it.
 6. Gemini on the web: one retry after 10 s; otherwise "summary unavailable".
-7. The demo uses a separate Gemini key from a separate Google project, stored as a Space secret named GEMINI_API_KEY. The key is never in the code or the repo.
+7. The demo uses a separate Gemini key from a separate Google project, stored as a secret environment variable named GEMINI_API_KEY in the Render dashboard. The key is never in the code or the repo.
 8. Logs record only the time, hostname and result. Full URLs and query strings are never logged.
-9. Deploy by pushing this repo to the Space as a second git remote.
+9. Deploy from GitHub (github.com/Grace-goodluck/website-audit-agent): Render builds the Dockerfile and redeploys on each push to the master branch.
 10. Only http and https on standard ports (80, 443). Localhost, private, link-local and reserved IP addresses are blocked, checked after DNS resolution and again on every redirect.
 11. Broken links mean 404/410 or 500–599, as in decision 4 (fixed 2026-11-06 before deploying; LinkedIn's 999 is now "unknown").
 12. A link on the audited page that points to a non-public address is not requested. It is reported as "unknown (blocked: private address)", not broken.
 
 Known limitation: DNS rebinding — the address is checked once and resolved again on connect; accepted for a rate-limited demo.
 
-Public files: pushing this repo to the Space makes reports/, results/cache/ and evaluation/ public in the Space's files. They cover only Grace's own public sites (techbygrace.com and artisan-service-app.vercel.app). They are not in the Docker image.
+Public files: the GitHub repo is public, so reports/, results/cache/ and evaluation/ are public there. They cover only Grace's own public sites (techbygrace.com and artisan-service-app.vercel.app). They are not in the Docker image.
 
 ## Decision (2026-11-06): host
 Host on Render free plan; UptimeRobot pings /health to prevent sleeping. Hugging Face dropped because Docker Spaces require PRO.
