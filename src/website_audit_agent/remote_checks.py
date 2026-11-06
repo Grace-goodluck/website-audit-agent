@@ -66,6 +66,8 @@ def probe(url: str, http: HttpClient, timeout: float = LINK_TIMEOUT_S) -> LinkSt
         if response.status in _FALLBACK_TO_GET:
             response = http.get(url, timeout)
     except FetchError as exc:
+        if exc.kind == "blocked":  # web demo: a non-public address is not requested, and not counted as broken
+            return LinkStatus(url, "blocked", str(exc))
         return LinkStatus(url, "broken", _FETCH_ERROR_LABELS.get(exc.kind, exc.kind))
     return classify_status(url, response.status)
 

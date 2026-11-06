@@ -1,5 +1,7 @@
 """Fakes for the two ports. No test touches the network or Gemini."""
 
+import ipaddress
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from website_audit_agent.models import FetchedPage, HttpResponse
@@ -87,6 +89,48 @@ class FakeClock:
     def sleep(self, seconds: float) -> None:
         self.sleeps.append(seconds)
         self.t += seconds
+
+
+PUBLIC_IP = "93.184.216.34"
+
+
+def fake_resolver(table: dict[str, object] | None = None):
+    """DNS stand-in for UrlGuard. IP literals resolve to themselves; `localhost` to 127.0.0.1;
+    other names to `table[name]` (a list of addresses, or an exception to raise), else PUBLIC_IP."""
+    table = {"localhost": ["127.0.0.1", "::1"], **(table or {})}
+
+    def resolve(host: str, port: int) -> list[str]:
+        try:
+            ipaddress.ip_address(host)
+            return [host]
+        except ValueError:
+            pass
+        value = table.get(host, [PUBLIC_IP])
+        if isinstance(value, Exception):
+            raise value
+        return list(value)
+
+    return resolve
+
+
+class FakeNow:
+    """Stands in for utc_now in the web limiter; advance() moves time on."""
+
+    def __init__(self, start: datetime = datetime(2026, 11, 6, 20, 0, tzinfo=timezone.utc)) -> None:
+        self.t = start
+
+    def __call__(self) -> datetime:
+        return self.t
+
+    def advance(self, **delta: float) -> None:
+        self.t += timedelta(**delta)
+
+
+class ImmediateExecutor:
+    """Runs a web job synchronously, so tests need no threads."""
+
+    def submit(self, fn, /, *args):
+        fn(*args)
 
 
 class FakeLLM:

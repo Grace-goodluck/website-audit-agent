@@ -7,6 +7,7 @@ can remove them from the report (decision 3).
 from datetime import datetime
 
 from website_audit_agent.checks import parse_html, run_page_checks
+from website_audit_agent.config import LINK_CAP, LINK_TIMEOUT_S
 from website_audit_agent.fetch import fetch_page
 from website_audit_agent.models import CheckResult, Report, Summary
 from website_audit_agent.ports import LLM, FetchError, HttpClient
@@ -29,7 +30,17 @@ def _short_report(url: str, final_url: str | None, now: datetime, model: str, er
     )
 
 
-def run_audit(url: str, http: HttpClient, llm: LLM | None, model: str, now: datetime | None = None) -> Report:
+def run_audit(
+    url: str,
+    http: HttpClient,
+    llm: LLM | None,
+    model: str,
+    now: datetime | None = None,
+    *,
+    link_cap: int = LINK_CAP,
+    link_timeout: float = LINK_TIMEOUT_S,
+) -> Report:
+    """link_cap / link_timeout default to the command-line values; the web demo passes 15 and 5 s."""
     now = now or datetime.now()
 
     try:
@@ -43,8 +54,8 @@ def run_audit(url: str, http: HttpClient, llm: LLM | None, model: str, now: date
     if not results[0].passed:  # continued #8: a non-2xx page is a fetch failure
         return _short_report(url, page.final_url, now, model, f"HTTP {page.status}", results[0])
 
-    results.append(check_favicon(page, soup, http))
-    results.append(check_links(collect_links(page, soup), http))
+    results.append(check_favicon(page, soup, http, timeout=link_timeout))
+    results.append(check_links(collect_links(page, soup), http, cap=link_cap, timeout=link_timeout))
 
     if llm is None:
         summary = Summary(available=False, reason=NO_KEY_REASON)

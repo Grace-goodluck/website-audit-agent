@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Audit: {{ job.host }}{% endblock %}
+
+{% block head %}
+  {% if job.status in ("queued", "running") %}<meta http-equiv="refresh" content="3">{% endif %}
+{% endblock %}
+
+{% block content %}
+  {% if job.status in ("queued", "running") %}
+    <div class="card" role="status">
+      <p><strong>Auditing {{ job.host }}…</strong></p>
+      <p class="muted">This usually takes under a minute. The page refreshes by itself.</p>
+    </div>
+
+  {% elif job.status == "error" %}
+    <div class="card error" role="alert">Something went wrong while auditing {{ job.host }}. Please try again later.</div>
+
+  {% else %}
+    {% set r = job.report %}
+    <p class="muted">
+      Audited {{ r.url }}{% if r.final_url and r.final_url != r.url %} (final URL {{ r.final_url }}){% endif %}
+      on {{ r.audited_at.strftime("%Y-%m-%d %H:%M:%S") }}.
+      <a href="/audit/{{ job.id }}/report.md">Download the report (.md)</a>
+    </p>
+
+    {% if r.fetch_error %}
+      <h2>Page could not be fetched</h2>
+      <div class="card error">{{ r.checks[0].detail }}</div>
+      <p>No other checks were run.</p>
+
+    {% else %}
+      {% set failed = r.checks | rejectattr("passed") | list %}
+      <p><strong>{{ (r.checks | length) - (failed | length) }} of {{ r.checks | length }} checks passed.</strong></p>
+
+      <h2>Summary</h2>
+      {% if r.summary.available %}
+        <p>{{ r.summary.text }}</p>
+      {% else %}
+        <p><strong>Summary unavailable</strong> ({{ r.summary.reason }}). The check results below are complete.</p>
+      {% endif %}
+
+      <h2>Prioritised fixes</h2>
+      {% if r.summary.available %}
+        {% if r.summary.fixes %}
+          <ol>{% for f in r.summary.fixes %}<li><strong>{{ f.check }}</strong>: {{ f.text }}</li>{% endfor %}</ol>
+        {% else %}
+          <p>No fixes suggested.</p>
+        {% endif %}
+      {% elif failed %}
+        <p>Not prioritised (no summary). Failed checks:</p>
+        <ul>{% for c in failed %}<li><strong>{{ c.name }}</strong>: {{ c.detail }}</li>{% endfor %}</ul>
+      {% else %}
+        <p>All checks passed.</p>
+      {% endif %}
+
+      <h2>Checks</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+          <tbody>
+          {% for c in r.checks %}
+            <tr>
+              <td>{{ c.name }}</td>
+              <td class="{{ 'pass' if c.passed else 'fail' }}">{{ "PASS" if c.passed else "FAIL" }}</td>
+              <td>
+                {{ c.detail }}
+                {% if c.items and (not c.passed or c.name == "broken_links") %}
+                  <ul class="items">{% for item in c.items %}<li>{{ item }}</li>{% endfor %}</ul>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+
+    <p><a href="/">Audit another page</a></p>
+  {% endif %}
+{% endblock %}

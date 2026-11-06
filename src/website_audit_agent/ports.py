@@ -8,7 +8,7 @@ from typing import Literal, Protocol
 
 from website_audit_agent.models import HttpResponse
 
-FetchErrorKind = Literal["dns", "timeout", "too_many_redirects", "connection"]
+FetchErrorKind = Literal["dns", "timeout", "too_many_redirects", "connection", "blocked"]
 
 
 class FetchError(Exception):

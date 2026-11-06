@@ -77,6 +77,19 @@ def test_fetch_errors_are_broken(kind, label):
     assert status.outcome == "broken" and status.detail == label
 
 
+def test_blocked_private_address_is_unknown_not_broken():
+    """Web demo: SafeHttpxClient refuses non-public addresses with FetchError("blocked", ...)."""
+    url = "http://10.0.0.1/"
+    http = FakeHttp({url: FetchError("blocked", "private address")})
+    status = probe(url, http)
+    assert status.outcome == "blocked" and status.detail == "private address"
+
+    result = check_links([url], http)
+    assert result.passed
+    assert "0 broken, 1 unknown (blocked)" in result.detail
+    assert result.items == (f"UNKNOWN, blocked (private address) {url}",)
+
+
 @pytest.mark.parametrize("refused", [405, 501])
 def test_head_falls_back_to_get(refused):
     http = FakeHttp({("HEAD", "https://x.test/"): refused, ("GET", "https://x.test/"): 200})

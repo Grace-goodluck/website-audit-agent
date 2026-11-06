@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <p>
+    Enter the address of one page. The agent checks its HTTP status, HTTPS, response time, page size, title,
+    meta description, mobile viewport, headings, image alt text, Open Graph tags, favicon and links, then writes
+    a plain-English summary with prioritised fixes.
+  </p>
+
+  {% if error %}
+    <div class="card error" role="alert">{{ error }}</div>
+  {% endif %}
+
+  <form class="card" method="post" action="/audit">
+    <label for="url">Page URL</label>
+    <input id="url" name="url" type="url" required placeholder="https://example.com/" value="{{ url or '' }}">
+
+    <label class="confirm">
+      <input type="checkbox" name="confirm" value="yes" required>
+      <span>I own this site or have permission to audit it.</span>
+    </label>
+
+    <button type="submit">Audit this page</button>
+  </form>
+{% endblock %}
