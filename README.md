@@ -1,14 +1,3 @@
----
-title: Website Audit Agent
-emoji: 🔎
-colorFrom: blue
-colorTo: gray
-sdk: docker
-app_port: 7860
-pinned: false
-short_description: Audit one web page you own and get prioritised fixes.
----
-
 # Website Audit Agent
 
 Audits one web page and writes a plain-English report: what was checked, what passed, what failed,
@@ -34,7 +23,7 @@ The report is written to `reports/<host>-YYYYMMDD-HHMMSS.md`. Exit codes: 0 repo
 1 report written without a summary, or the page could not be fetched; 2 bad arguments.
 Without `GEMINI_API_KEY` the checks still run and the summary is marked unavailable.
 
-## Web demo (Hugging Face Space)
+## Web demo (Render)
 
 A FastAPI layer over the same audit, with limits for a public demo: 3 audits per visitor per hour,
 30 audits and 15 AI summaries per day (reset at midnight Pacific time), 15 links per audit at 5 s each,
@@ -44,12 +33,18 @@ Run locally:
 
 ```sh
 uv sync --extra web
-uv run uvicorn website_audit_agent.web.app:build_default_app --factory --port 7860
+uv run website-audit-web          # http://localhost:8000 (or the port in $PORT)
 ```
 
-Deploy: the Space reads this README's front matter and builds the `Dockerfile`. Set the Gemini key
-as a Space **secret** named `GEMINI_API_KEY` (Settings → Variables and secrets); it is never stored
-in the code or the repo. Optionally set `AUDIT_AGENT_MODEL` as a variable.
+Deploy on Render as a free **Web Service** with runtime **Docker** (it builds the `Dockerfile`):
+
+- Environment: add `GEMINI_API_KEY` as a secret environment variable in the Render dashboard; it is
+  never stored in the code or the repo. Optionally set `AUDIT_AGENT_MODEL`.
+- Health check path: `/health` (answers `ok` at once; runs no audit and no Gemini call).
+- The app listens on the port Render provides in `PORT`.
+
+Free Render services sleep when idle; an UptimeRobot monitor pings `/health` to keep the demo awake.
+Limits are kept in memory, so they reset whenever the service restarts.
 
 ## Tests
 

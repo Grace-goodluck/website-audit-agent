@@ -1,7 +1,6 @@
 """FastAPI web demo over the unchanged audit (decisions 2026-11-06: web demo).
 
-Run on the Space with:
-    uvicorn website_audit_agent.web.app:build_default_app --factory --host 0.0.0.0 --port 7860 --no-access-log
+Run with `website-audit-web` (main() below): listens on $PORT, which Render sets, else 8000.
 
 create_app() takes every dependency as an argument so tests pass fakes;
 build_default_app() wires the real clients from environment variables.
@@ -140,15 +139,16 @@ def create_app(
             headers={"Content-Disposition": f'attachment; filename="{report_filename(job.report)}"'},
         )
 
-    @app.get("/healthz")
-    def healthz() -> Response:
+    @app.api_route("/health", methods=["GET", "HEAD"])  # UptimeRobot's HTTP monitors send HEAD
+    def health() -> Response:
+        """For Render and UptimeRobot: answers at once, no audit, no Gemini call."""
         return PlainTextResponse("ok")
 
     return app
 
 
 def build_default_app() -> FastAPI:
-    """Real wiring for the Space. GEMINI_API_KEY comes from a Space secret (web decision 7)."""
+    """Real wiring. GEMINI_API_KEY comes from the host's secret environment settings (web decision 7)."""
     logging.basicConfig(level=logging.WARNING, format="%(asctime)s %(message)s")
     log.setLevel(logging.INFO)  # our lines carry only time, host and result; httpx's (full URLs) stay at WARNING
 
@@ -171,4 +171,26 @@ def build_default_app() -> FastAPI:
         guard=guard,
         limiter=Limiter(settings.limits),
         settings=settings,
+    )
+
+
+DEFAULT_PORT = 8000
+
+
+def port_from_env(env: dict[str, str] | None = None) -> int:
+    """Render provides the port in PORT; locally fall back to 8000. A bad value fails loudly."""
+    value = (os.environ if env is None else env).get("PORT", "").strip()
+    return int(value) if value else DEFAULT_PORT
+
+
+def main() -> None:
+    """Entry point `website-audit-web` (used by the Dockerfile)."""
+    import uvicorn  # only in the `web` extra
+
+    uvicorn.run(
+        "website_audit_agent.web.app:build_default_app",
+        factory=True,
+        host="0.0.0.0",
+        port=port_from_env(),
+        access_log=False,  # web decision 8: no full URLs or client IPs in the logs
     )

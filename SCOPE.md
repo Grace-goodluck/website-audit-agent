@@ -53,6 +53,9 @@ Known limitation: DNS rebinding — the address is checked once and resolved aga
 
 Public files: pushing this repo to the Space makes reports/, results/cache/ and evaluation/ public in the Space's files. They cover only Grace's own public sites (techbygrace.com and artisan-service-app.vercel.app). They are not in the Docker image.
 
+## Decision (2026-11-06): host
+Host on Render free plan; UptimeRobot pings /health to prevent sleeping. Hugging Face dropped because Docker Spaces require PRO.
+
 ## Ethics
 Audit only sites you own or have permission to audit. One page fetch, at most one /favicon.ico request, plus at most 30 link checks per run (15 on the web demo); identify the tool in the User-Agent.
 

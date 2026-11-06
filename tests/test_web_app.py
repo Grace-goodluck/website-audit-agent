@@ -263,9 +263,52 @@ def test_logs_have_host_and_result_but_never_path_or_query(caplog):
     assert "private" not in text and "token" not in text and "abc123" not in text
 
 
-def test_healthz():
+@pytest.mark.parametrize("method", ["GET", "HEAD"])  # UptimeRobot's HTTP monitors send HEAD
+def test_health_is_quick_and_runs_no_audit_or_gemini(method):
+    http = FakeHttp(default=None)  # any request fails the test
+    llm = FakeLLM([])  # any Gemini call fails the test
+    client, _, _ = make_client(http=http, llm=llm, limits=Limits(audits_per_visitor_per_hour=1))
+
+    for _ in range(3):
+        response = client.request(method, "/health")
+        assert response.status_code == 200
+        if method == "GET":
+            assert response.text == "ok"
+    assert http.calls == [] and llm.prompts == []
+    assert submit(client).status_code == 303  # /health used none of the visitor's quota
+
+
+def test_old_healthz_path_is_gone():
     client, _, _ = make_client()
-    assert client.get("/healthz").text == "ok"
+    assert client.get("/healthz").status_code == 404
+
+
+# --- port (Render sets PORT) ---------------------------------------------------------------
+
+def test_port_from_env():
+    assert web_app.port_from_env({"PORT": "10000"}) == 10000
+    assert web_app.port_from_env({"PORT": " 8080 "}) == 8080
+    assert web_app.port_from_env({}) == 8000
+    assert web_app.port_from_env({"PORT": ""}) == 8000
+    with pytest.raises(ValueError):
+        web_app.port_from_env({"PORT": "not-a-port"})
+
+
+def test_main_runs_uvicorn_on_port_from_env(monkeypatch):
+    import sys
+    import types
+
+    calls = []
+    fake_uvicorn = types.ModuleType("uvicorn")
+    fake_uvicorn.run = lambda app, **kwargs: calls.append((app, kwargs))
+    monkeypatch.setitem(sys.modules, "uvicorn", fake_uvicorn)
+    monkeypatch.setenv("PORT", "10000")
+
+    web_app.main()
+    assert calls == [(
+        "website_audit_agent.web.app:build_default_app",
+        {"factory": True, "host": "0.0.0.0", "port": 10000, "access_log": False},
+    )]
 
 
 def test_default_app_reads_key_from_env_and_never_shows_it(monkeypatch, tmp_path):
@@ -282,5 +325,5 @@ def test_default_app_reads_key_from_env_and_never_shows_it(monkeypatch, tmp_path
 
     client = TestClient(web_app.build_default_app())
     assert seen["key"] == secret
-    for path in ("/", "/healthz", "/audit/nope"):
+    for path in ("/", "/health", "/audit/nope"):
         assert secret not in client.get(path).text

@@ -24,6 +24,7 @@ web = [
 
 [project.scripts]
 website-audit = "website_audit_agent.cli:main"
+website-audit-web = "website_audit_agent.web.app:main"
 
 [dependency-groups]
 dev = [

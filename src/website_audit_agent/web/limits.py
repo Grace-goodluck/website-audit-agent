@@ -1,4 +1,4 @@
-"""Demo limits (web decisions 1–3), in memory: they reset when the Space restarts.
+"""Demo limits (web decisions 1–3), in memory: they reset when the service restarts.
 
 - 3 audits per visitor per rolling hour (visitor = first X-Forwarded-For IP).
 - 30 audits per day in total — the real protection.
